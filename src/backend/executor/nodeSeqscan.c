@@ -108,10 +108,36 @@ static TupleTableSlot *
 ExecSeqScan(PlanState *pstate)
 {
 	SeqScanState *node = castNode(SeqScanState, pstate);
+    // const char *sql_query = node->ss.ps.state->es_sourceText;
 
+    // // 定义时间结构体，记录开始和结束时间
+    // struct timespec start, end;
+    // clock_gettime(CLOCK_MONOTONIC, &start); // 记录开始时间
+
+    // // 调用 ExecScan 函数
+    // TupleTableSlot *result = ExecScan(&node->ss,
+    //                                   (ExecScanAccessMtd) SeqNext,
+    //                                   (ExecScanRecheckMtd) SeqRecheck);
+
+    // // 记录结束时间
+    // clock_gettime(CLOCK_MONOTONIC, &end);
+
+    // // 计算执行时间，单位为纳秒
+    // long exec_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+
+    // // 打开文件，将 SQL 和执行时间写入
+    // FILE *fp = fopen("/Users/hzhong81/documents/query_stats_execscan.txt", "a");
+    // if (fp != NULL)
+    // {
+    //     fprintf(fp, "SQL Query: %s\n", sql_query);
+    //     fprintf(fp, "ExecScan Execution Time: %ld ns\n", exec_time);
+    //     fprintf(fp, "---------------------------------------\n");
+    //     fclose(fp);  // 关闭文件
+    // }
 	return ExecScan(&node->ss,
 					(ExecScanAccessMtd) SeqNext,
 					(ExecScanRecheckMtd) SeqRecheck);
+    // return result;
 }
 
 

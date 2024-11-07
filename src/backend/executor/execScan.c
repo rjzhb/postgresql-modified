@@ -36,7 +36,7 @@ ExecScanFetch(ScanState *node,
 			  ExecScanAccessMtd accessMtd,
 			  ExecScanRecheckMtd recheckMtd)
 {
-	EState	   *estate = node->ps.state;q
+	EState	   *estate = node->ps.state;
 
 	CHECK_FOR_INTERRUPTS();
 
@@ -153,106 +153,630 @@ ExecScanFetch(ScanState *node,
  *			 "cursor" is positioned before the first qualifying tuple.
  * ----------------------------------------------------------------
  */
-TupleTableSlot *
-ExecScan(ScanState *node,
-		 ExecScanAccessMtd accessMtd,	/* function returning a tuple */
-		 ExecScanRecheckMtd recheckMtd)
+#include <time.h>  // 引入用于计时的库
+#include <stdio.h>  
+
+// TupleTableSlot *ExecScan(ScanState *node,
+//                          ExecScanAccessMtd accessMtd,
+//                          ExecScanRecheckMtd recheckMtd)
+// {
+//     ExprContext *econtext;
+//     ExprState *qual;
+//     ProjectionInfo *projInfo;
+
+//     long total_time = 0, qual_time = 0, proj_time = 0, exec_scanfetch_time = 0;
+
+//     const char *sql_query = node->ps.state->es_sourceText;
+
+//     FILE *fp = fopen("/Users/hzhong81/Documents/query_stats_for.txt", "a");
+
+//     qual = node->ps.qual;
+//     projInfo = node->ps.ps_ProjInfo;
+//     econtext = node->ps.ps_ExprContext;
+
+//     struct timespec start, end;
+
+//     if (!qual && !projInfo) {
+//         ResetExprContext(econtext);
+
+//         TupleTableSlot *result = ExecScanFetch(node, accessMtd, recheckMtd);
+//         return result;
+//     }
+
+//     ResetExprContext(econtext);
+
+//     clock_gettime(CLOCK_MONOTONIC, &start);
+//     for (;;) {
+
+//         TupleTableSlot *slot = ExecScanFetch(node, accessMtd, recheckMtd);
+//         if (TupIsNull(slot)) {
+//             if (projInfo) {
+//                 TupleTableSlot *result = ExecClearTuple(projInfo->pi_state.resultslot);
+//                 return result;
+//             } else {
+//                 return slot;
+//             }
+//         }
+
+//         econtext->ecxt_scantuple = slot;
+//         bool qual_result = (qual == NULL) || ExecQual(qual, econtext);
+
+//         if (qual_result) {
+//             if (projInfo) {
+//                 TupleTableSlot *result = ExecProject(projInfo);
+
+//                 if (fp != NULL) {
+//                     clock_gettime(CLOCK_MONOTONIC, &end);
+//                     total_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+//                     fprintf(fp, "Total Time: %ld ns\n", total_time);
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//                 return result;
+//             } else {
+//                 if (fp != NULL) {
+//                     clock_gettime(CLOCK_MONOTONIC, &end);
+//                     total_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+//                     fprintf(fp, "Total Time: %ld ns\n", total_time);
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//                 return slot;
+//             }
+//         } else {
+// 			                if (fp != NULL) {
+//                     clock_gettime(CLOCK_MONOTONIC, &end);
+//                     total_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+//                     fprintf(fp, "Total Time: %ld ns\n", total_time);
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//             InstrCountFiltered1(node, 1);
+//         }
+
+//         ResetExprContext(econtext);
+//     }
+
+//     return NULL;
+// }
+
+// TupleTableSlot *ExecScan(ScanState *node,
+//                          ExecScanAccessMtd accessMtd,
+//                          ExecScanRecheckMtd recheckMtd)
+// {
+//     ExprContext *econtext;
+//     ExprState *qual;
+//     ProjectionInfo *projInfo;
+
+//     long total_time = 0, qual_time = 0, proj_time = 0, exec_scanfetch_time = 0;
+
+//     const char *sql_query = node->ps.state->es_sourceText;
+
+//     FILE *fp = fopen("/Users/hzhong81/Documents/query_stats_detailed.txt", "a");
+
+//     qual = node->ps.qual;
+//     projInfo = node->ps.ps_ProjInfo;
+//     econtext = node->ps.ps_ExprContext;
+
+//     struct timespec start, end;
+//     clock_gettime(CLOCK_MONOTONIC, &start);
+
+//     if (!qual && !projInfo) {
+//         ResetExprContext(econtext);
+
+//         struct timespec exec_fetch_start, exec_fetch_end;
+//         clock_gettime(CLOCK_MONOTONIC, &exec_fetch_start);
+//         TupleTableSlot *result = ExecScanFetch(node, accessMtd, recheckMtd);
+//         clock_gettime(CLOCK_MONOTONIC, &exec_fetch_end);
+
+//         exec_scanfetch_time = (exec_fetch_end.tv_sec - exec_fetch_start.tv_sec) * 1e9 +
+//                               (exec_fetch_end.tv_nsec - exec_fetch_start.tv_nsec);
+
+//         if (fp != NULL) {
+//             fprintf(fp, "SQL Query: %s\n", sql_query);
+//             fprintf(fp, "ExecScanFetch Time: %ld ns\n", exec_scanfetch_time);
+//             fprintf(fp, "---------------------------------------\n");
+//             fclose(fp);
+//         }
+//         return result;
+//     }
+
+//     ResetExprContext(econtext);
+
+//     for (;;) {
+//         struct timespec fetch_start, fetch_end, qual_start, qual_end, proj_start, proj_end;
+
+//         clock_gettime(CLOCK_MONOTONIC, &fetch_start);
+//         TupleTableSlot *slot = ExecScanFetch(node, accessMtd, recheckMtd);
+//         clock_gettime(CLOCK_MONOTONIC, &fetch_end);
+
+//         exec_scanfetch_time += (fetch_end.tv_sec - fetch_start.tv_sec) * 1e9 +
+//                                (fetch_end.tv_nsec - fetch_start.tv_nsec);
+
+//         if (TupIsNull(slot)) {
+//             if (projInfo) {
+//                 TupleTableSlot *result = ExecClearTuple(projInfo->pi_state.resultslot);
+                
+//                 // Logging before return
+//                 if (fp != NULL) {
+//                     clock_gettime(CLOCK_MONOTONIC, &end);
+//                     total_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+//                     fprintf(fp, "ExecScanFetch Time: %ld ns\n", exec_scanfetch_time);
+//                     fprintf(fp, "Total Time: %ld ns\n", total_time);
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//                 return result;
+//             } else {
+//                 if (fp != NULL) {
+//                     clock_gettime(CLOCK_MONOTONIC, &end);
+//                     total_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+//                     fprintf(fp, "ExecScanFetch Time: %ld ns\n", exec_scanfetch_time);
+//                     fprintf(fp, "Total Time: %ld ns\n", total_time);
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//                 return slot;
+//             }
+//         }
+
+//         econtext->ecxt_scantuple = slot;
+
+//         clock_gettime(CLOCK_MONOTONIC, &qual_start);
+//         bool qual_result = (qual == NULL) || ExecQual(qual, econtext);
+//         clock_gettime(CLOCK_MONOTONIC, &qual_end);
+
+//         qual_time += (qual_end.tv_sec - qual_start.tv_sec) * 1e9 +
+//                      (qual_end.tv_nsec - qual_start.tv_nsec);
+
+//         if (qual_result) {
+//             if (projInfo) {
+//                 clock_gettime(CLOCK_MONOTONIC, &proj_start);
+//                 TupleTableSlot *result = ExecProject(projInfo);
+//                 clock_gettime(CLOCK_MONOTONIC, &proj_end);
+
+//                 proj_time += (proj_end.tv_sec - proj_start.tv_sec) * 1e9 +
+//                              (proj_end.tv_nsec - proj_start.tv_nsec);
+
+//                 clock_gettime(CLOCK_MONOTONIC, &end);
+//                 total_time = (end.tv_sec - start.tv_sec) * 1e9 +
+//                              (end.tv_nsec - start.tv_nsec);
+
+//                 if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+//                     fprintf(fp, "ExecScanFetch Total Time: %ld ns\n", exec_scanfetch_time);
+//                     fprintf(fp, "Qual Time: %ld ns (%.2f%%)\n", qual_time, (double)qual_time / total_time * 100);
+//                     fprintf(fp, "Projection Time: %ld ns (%.2f%%)\n", proj_time, (double)proj_time / total_time * 100);
+//                     fprintf(fp, "Total Time: %ld ns\n", total_time);
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//                 return result;
+//             } else {
+//                 if (fp != NULL) {
+//                     clock_gettime(CLOCK_MONOTONIC, &end);
+//                     total_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+//                     fprintf(fp, "ExecScanFetch Time: %ld ns\n", exec_scanfetch_time);
+//                     fprintf(fp, "Qual Time: %ld ns\n", qual_time);
+//                     fprintf(fp, "Total Time: %ld ns\n", total_time);
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//                 return slot;
+//             }
+//         } else {
+//             InstrCountFiltered1(node, 1);
+//         }
+
+//         ResetExprContext(econtext);
+//     }
+
+//     return NULL;
+// }
+// TupleTableSlot *ExecScan(ScanState *node,
+//                          ExecScanAccessMtd accessMtd,
+//                          ExecScanRecheckMtd recheckMtd)
+// {
+//     ExprContext *econtext;
+//     ExprState *qual;
+//     ProjectionInfo *projInfo;
+
+//     long total_time = 0, qual_time = 0, proj_time = 0, skip_total_time = 0, fetch_total_time = 0,instr_total_time;
+
+//     // 获取执行的 SQL 语句信息
+//     const char *sql_query = node->ps.state->es_sourceText;
+//     FILE *fp = fopen("/Users/hzhong81/Documents/query_stats_execscan.txt", "a");
+
+//     // 初始化 node 中的数据
+//     qual = node->ps.qual;
+//     projInfo = node->ps.ps_ProjInfo;
+//     econtext = node->ps.ps_ExprContext;
+
+//     if (!qual && !projInfo) {
+//         ResetExprContext(econtext);
+//         // 执行 ExecScanFetch
+// 				if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "This is ExecScanFetch\n");
+// 					                    fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+// 				}
+//         TupleTableSlot *result = ExecScanFetch(node, accessMtd, recheckMtd);
+//         return result;
+//         // return ExecScanFetch(node, accessMtd, recheckMtd);
+//     }
+
+//     ResetExprContext(econtext);
+
+//     struct timespec skip_start, skip_end;
+//     clock_gettime(CLOCK_MONOTONIC, &skip_start);
+
+//     for (;;) {
+//         struct timespec start, end;
+//         clock_gettime(CLOCK_MONOTONIC, &start);
+
+//         TupleTableSlot *slot = ExecScanFetch(node, accessMtd, recheckMtd);
+
+//         clock_gettime(CLOCK_MONOTONIC, &end);
+//         fetch_total_time = (end.tv_sec - start.tv_sec) * 1e9 +
+//                              (end.tv_nsec - start.tv_nsec);
+
+//         if (TupIsNull(slot)) {
+//             if (projInfo) {
+// 				if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "projinfo + tupIsNull\n");
+// 					                    fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+// 				}
+//                 return ExecClearTuple(projInfo->pi_state.resultslot);
+//             } else {
+// 				if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "tupIsNull\n");
+// 					                    fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+// 				}
+//                 return slot;
+//             }
+//         }
+
+//         econtext->ecxt_scantuple = slot;
+
+//         // 记录 qual 执行时间
+//         struct timespec qual_start, qual_end;
+//         clock_gettime(CLOCK_MONOTONIC, &qual_start);
+
+//         bool qual_result = (qual == NULL) || ExecQual(qual, econtext);
+
+//         clock_gettime(CLOCK_MONOTONIC, &qual_end);
+//         qual_time = (qual_end.tv_sec - qual_start.tv_sec) * 1e9 +
+//                     (qual_end.tv_nsec - qual_start.tv_nsec);
+
+//         if (qual_result) {
+//             // 如果符合过滤条件，执行 projInfo
+//             if (projInfo) {
+//                 struct timespec proj_start, proj_end;
+//                 clock_gettime(CLOCK_MONOTONIC, &proj_start);
+
+//                 TupleTableSlot *result = ExecProject(projInfo);
+
+//                 clock_gettime(CLOCK_MONOTONIC, &proj_end);
+//                 proj_time = (proj_end.tv_sec - proj_start.tv_sec) * 1e9 +
+//                             (proj_end.tv_nsec - proj_start.tv_nsec);
+
+//                 clock_gettime(CLOCK_MONOTONIC, &end);
+//                 clock_gettime(CLOCK_MONOTONIC, &skip_end);
+
+//                 total_time = (end.tv_sec - start.tv_sec) * 1e9 +
+//                              (end.tv_nsec - start.tv_nsec);
+//                 skip_total_time = (skip_end.tv_sec - skip_start.tv_sec) * 1e9 +
+//                                   (skip_end.tv_nsec - skip_start.tv_nsec);
+
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "qualresult\n");
+//                     fprintf(fp, "Skip until this row SeqScan Time: %ld ns\n", skip_total_time);
+//                     fprintf(fp, "This row SeqScan Time: %ld ns\n", total_time);
+//                     fprintf(fp, "Qual Time: %ld ns (%.2f%%)\n", qual_time,
+//                             (double)qual_time / total_time * 100);
+//                     fprintf(fp, "Projection Time: %ld ns (%.2f%%)\n", proj_time,
+//                             (double)proj_time / total_time * 100);
+//                 //     // 输出当前行的列值
+//                     for (int i = 0; i < slot->tts_nvalid; i++) {
+//                         bool isnull = slot->tts_isnull[i];
+//                         Datum value = slot->tts_values[i];
+//                         if (isnull) {
+//                             fprintf(fp, "Column %d: NULL\n", i + 1);
+//                         } else {
+//                             fprintf(fp, "Column %d: %ld\n", i + 1, value);
+//                         }
+//                     }
+
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+//                 }
+//                 return result;
+//             } else {
+// 				clock_gettime(CLOCK_MONOTONIC, &skip_end);
+
+//                 skip_total_time = (skip_end.tv_sec - skip_start.tv_sec) * 1e9 +
+//                                   (skip_end.tv_nsec - skip_start.tv_nsec);
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "return slot\n");
+//                     fprintf(fp, "Skip until this row SeqScan Time: %ld ns\n", skip_total_time);
+//                     fprintf(fp, "This row SeqScan Time: %ld ns\n", total_time);
+//                     fprintf(fp, "Qual Time: %ld ns (%.2f%%)\n", 0,
+//                             (double)qual_time / total_time * 100);
+//                     fprintf(fp, "Projection Time: %ld ns (%.2f%%)\n", proj_time,
+//                             (double)proj_time / total_time * 100);
+
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+// 				}
+//                 return slot;
+//             }
+//         } else {
+// 			        struct timespec instr_start, instr_end;
+//         clock_gettime(CLOCK_MONOTONIC, &instr_start);
+
+//             InstrCountFiltered1(node, 1);
+//         clock_gettime(CLOCK_MONOTONIC, &instr_end);
+// 		instr_total_time = (instr_end.tv_sec - instr_start.tv_sec) * 1e9 +
+//                                   (instr_end.tv_nsec - instr_start.tv_nsec);
+// 				clock_gettime(CLOCK_MONOTONIC, &skip_end);
+
+//                 skip_total_time = (skip_end.tv_sec - skip_start.tv_sec) * 1e9 +
+//                                   (skip_end.tv_nsec - skip_start.tv_nsec);
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "InstrCountFiltered1\n");
+//                     fprintf(fp, "Skip until this row SeqScan Time: %ld ns\n", skip_total_time);
+// 					fprintf(fp, "instr count time: %ld ns\n", instr_total_time);
+//                     fprintf(fp, "This row SeqScan Time: %ld ns\n", fetch_total_time);
+//                     fprintf(fp, "Qual Time: %ld ns (%.2f%%)\n", qual_time,
+//                             (double)qual_time / total_time * 100);
+//                     fprintf(fp, "Projection Time: %ld ns (%.2f%%)\n", proj_time,
+//                             (double)proj_time / total_time * 100);
+
+//                     fprintf(fp, "---------------------------------------\n");
+//                     fclose(fp);
+// 				}
+//         }
+
+
+//         ResetExprContext(econtext);
+//     }
+
+
+//     return NULL;
+// }
+
+// TupleTableSlot *ExecScan(ScanState *node,
+//                          ExecScanAccessMtd accessMtd,
+//                          ExecScanRecheckMtd recheckMtd)
+// {
+//     ExprContext *econtext;
+//     ExprState *qual;
+//     ProjectionInfo *projInfo;
+
+//     long total_time = 0, qual_time = 0, proj_time = 0, skip_total_time = 0, fetch_total_time = 0,scan_time = 0,gap_time=0;
+//     struct timespec start, end;
+//     // 获取执行的 SQL 语句信息
+//     const char *sql_query = node->ps.state->es_sourceText;
+//     FILE *fp = fopen("/Users/hzhong81/Documents/query_stats_execscan.txt", "a");
+//     // 初始化 node 中的数据
+//     qual = node->ps.qual;
+//     projInfo = node->ps.ps_ProjInfo;
+//     econtext = node->ps.ps_ExprContext;
+//     if (!qual && !projInfo) {
+//         ResetExprContext(econtext);
+//         TupleTableSlot *result = ExecScanFetch(node, accessMtd, recheckMtd);
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fclose(fp);
+//                 }
+//         return result;
+//         // return ExecScanFetch(node, accessMtd, recheckMtd);
+//     }
+//     clock_gettime(CLOCK_MONOTONIC, &start);
+//     ResetExprContext(econtext);
+//     for (;;) {
+//         struct timespec scan_start, scan_end;
+//         clock_gettime(CLOCK_MONOTONIC, &scan_start);
+//         TupleTableSlot *slot = ExecScanFetch(node, accessMtd, recheckMtd);
+//         clock_gettime(CLOCK_MONOTONIC, &scan_end);
+//         scan_time = (scan_end.tv_sec - scan_start.tv_sec) * 1e9 +
+//                     (scan_end.tv_nsec - scan_start.tv_nsec);
+
+//                 // // // 将统计结果写入文件
+//                 // if (fp != NULL) {
+//                 //     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 				// 	fprintf(fp, "Fetchresult\n");
+// 				// 	fprintf(fp, "fetch time: %ld ns\n", scan_time);		
+//                 //     fprintf(fp, "---------------------------------------\n");
+// 				// 	fflush(fp);
+//                 //     fclose(fp);
+// 				// 	}
+
+//         if (TupIsNull(slot)) {
+//             if (projInfo) {
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fclose(fp);
+//                 }
+//                 return ExecClearTuple(projInfo->pi_state.resultslot);
+//             } else {
+//                 // // 将统计结果写入文件
+//                  if (fp != NULL) {
+//                     fclose(fp);
+//                 }
+//                 return slot;
+//             }
+//         }
+
+//         econtext->ecxt_scantuple = slot;
+
+//         // 记录 qual 执行时间
+//         struct timespec qual_start, qual_end;
+//         clock_gettime(CLOCK_MONOTONIC, &qual_start);
+
+//         bool qual_result = (qual == NULL) || ExecQual(qual, econtext);
+
+//         clock_gettime(CLOCK_MONOTONIC, &qual_end);
+//         qual_time = (qual_end.tv_sec - qual_start.tv_sec) * 1e9 +
+//                     (qual_end.tv_nsec - qual_start.tv_nsec);
+
+//         if (qual_result) {
+//             // 如果符合过滤条件，执行 projInfo
+//             if (projInfo) {
+// 				struct timespec proj_start, proj_end;
+// 				clock_gettime(CLOCK_MONOTONIC, &proj_start);
+//                 TupleTableSlot *result = ExecProject(projInfo);
+// 				clock_gettime(CLOCK_MONOTONIC, &proj_end);
+//        			clock_gettime(CLOCK_MONOTONIC, &end);
+// 				proj_time = (proj_end.tv_sec - proj_start.tv_sec) * 1e9 +
+//                              (proj_end.tv_nsec - proj_start.tv_nsec);
+//                 total_time = (end.tv_sec - start.tv_sec) * 1e9 +
+//                              (end.tv_nsec - start.tv_nsec);
+// 				total_time -= gap_time;
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "qualresult\n");
+//                     fprintf(fp, "This row SeqScan Time: %ld ns\n", total_time);
+//                     fprintf(fp, "Qual Time: %ld ns (%.2f%%)\n", qual_time,
+//                             (double)qual_time / total_time * 100);
+// 					fprintf(fp, "proj time: %ld ns\n", proj_time);		
+// 					fprintf(fp, "fetch time: %ld ns\n", scan_time);		
+// 				                //     // 输出当前行的列值
+//                     for (int i = 0; i < slot->tts_nvalid; i++) {
+//                         bool isnull = slot->tts_isnull[i];
+//                         Datum value = slot->tts_values[i];
+//                         if (isnull) {
+//                             fprintf(fp, "Column %d: NULL\n", i + 1);
+//                         } else {
+//                             fprintf(fp, "Column %d: %ld\n", i + 1, value);
+//                         }
+//                     }
+//                     fprintf(fp, "---------------------------------------\n");
+// 					fflush(fp);
+// 					fclose(fp);
+//                 }
+//                 return result;
+//             } else {
+//        			clock_gettime(CLOCK_MONOTONIC, &end);
+//                 total_time = (end.tv_sec - start.tv_sec) * 1e9 +
+//                              (end.tv_nsec - start.tv_nsec);
+// 				total_time -= gap_time;
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "normalresult\n");
+//                     fprintf(fp, "This row SeqScan Time: %ld ns\n", total_time);
+//                     fprintf(fp, "Qual Time: %ld ns (%.2f%%)\n", qual_time,
+//                             (double)qual_time / total_time * 100);
+// 					fprintf(fp, "proj time: %ld ns\n", proj_time);		
+// 					fprintf(fp, "fetch time: %ld ns\n", scan_time);		
+//                     fprintf(fp, "---------------------------------------\n");
+// 					fflush(fp);
+//                     fclose(fp);
+//                 }
+//                 return slot;
+//             }
+//         } else {
+//             InstrCountFiltered1(node, 1);
+// 			struct timespec gap_start, gap_end;
+//         	clock_gettime(CLOCK_MONOTONIC, &gap_start);
+//                 // // 将统计结果写入文件
+//                 if (fp != NULL) {
+//                     fprintf(fp, "SQL Query: %s\n", sql_query);
+// 					fprintf(fp, "normalresult\n");
+//                     fprintf(fp, "This row SeqScan Time: %ld ns\n", 0);
+//                     fprintf(fp, "Qual Time: %ld ns (%.2f%%)\n", qual_time,
+//                             (double)qual_time / total_time * 100);
+// 					fprintf(fp, "proj time: %ld ns\n", 0);		
+// 					fprintf(fp, "fetch time: %ld ns\n", scan_time);		
+//                     fprintf(fp, "---------------------------------------\n");
+// 					fflush(fp);
+//                 }
+//         	clock_gettime(CLOCK_MONOTONIC, &gap_end);
+//             gap_time += (gap_end.tv_sec - gap_start.tv_sec) * 1e9 +
+//                              (gap_end.tv_nsec - gap_start.tv_nsec);
+//         }
+
+
+//         ResetExprContext(econtext);
+//     }
+
+//                 if (fp != NULL) {
+//                     fclose(fp);
+//                 }
+//     return NULL;
+// }
+
+TupleTableSlot *ExecScan(ScanState *node,
+                         ExecScanAccessMtd accessMtd,
+                         ExecScanRecheckMtd recheckMtd)
 {
-	ExprContext *econtext;
-	ExprState  *qual;
-	ProjectionInfo *projInfo;
+    ExprContext *econtext;
+    ExprState *qual;
+    ProjectionInfo *projInfo;
 
-	/*
-	 * Fetch data from node
-	 */
-	qual = node->ps.qual;
-	projInfo = node->ps.ps_ProjInfo;
-	econtext = node->ps.ps_ExprContext;
+    qual = node->ps.qual;
+    projInfo = node->ps.ps_ProjInfo;
+    econtext = node->ps.ps_ExprContext;
 
-	/* interrupt checks are in ExecScanFetch */
+    if (!qual && !projInfo) {
+        ResetExprContext(econtext);
+        return ExecScanFetch(node, accessMtd, recheckMtd);
+    }
 
-	/*
-	 * If we have neither a qual to check nor a projection to do, just skip
-	 * all the overhead and return the raw scan tuple.
-	 */
-	if (!qual && !projInfo)
-	{
-		ResetExprContext(econtext);
-		return ExecScanFetch(node, accessMtd, recheckMtd);
-	}
+    ResetExprContext(econtext);
 
-	/*
-	 * Reset per-tuple memory context to free any expression evaluation
-	 * storage allocated in the previous tuple cycle.
-	 */
-	ResetExprContext(econtext);
 
-	/*
-	 * get a tuple from the access method.  Loop until we obtain a tuple that
-	 * passes the qualification.
-	 */
-	for (;;)
-	{
-		TupleTableSlot *slot;
+    for (;;) {
+        TupleTableSlot *slot = ExecScanFetch(node, accessMtd, recheckMtd);
 
-		slot = ExecScanFetch(node, accessMtd, recheckMtd);
+        if (TupIsNull(slot)) {
+            if (projInfo) {
+                return ExecClearTuple(projInfo->pi_state.resultslot);
+            } else {
+                return slot;
+            }
+        }
 
-		/*
-		 * if the slot returned by the accessMtd contains NULL, then it means
-		 * there is nothing more to scan so we just return an empty slot,
-		 * being careful to use the projection result slot so it has correct
-		 * tupleDesc.
-		 */
-		if (TupIsNull(slot))
-		{
-			if (projInfo)
-				return ExecClearTuple(projInfo->pi_state.resultslot);
-			else
-				return slot;
-		}
+        econtext->ecxt_scantuple = slot;
+        bool qual_result = (qual == NULL) || ExecQual(qual, econtext);
 
-		/*
-		 * place the current tuple into the expr context
-		 */
-		econtext->ecxt_scantuple = slot;
+        if (qual_result) {
+            if (projInfo) {
+                TupleTableSlot *result = ExecProject(projInfo);
+                return result;
+            } else {
+                return slot;
+            }
+        } else {
+            InstrCountFiltered1(node, 1);
+        }
 
-		/*
-		 * check that the current tuple satisfies the qual-clause
-		 *
-		 * check for non-null qual here to avoid a function call to ExecQual()
-		 * when the qual is null ... saves only a few cycles, but they add up
-		 * ...
-		 */
-		if (qual == NULL || ExecQual(qual, econtext))
-		{
-			/*
-			 * Found a satisfactory scan tuple.
-			 */
-			if (projInfo)
-			{
-				/*
-				 * Form a projection tuple, store it in the result tuple slot
-				 * and return it.
-				 */
-				return ExecProject(projInfo);
-			}
-			else
-			{
-				/*
-				 * Here, we aren't projecting, so just return scan tuple.
-				 */
-				return slot;
-			}
-		}
-		else
-			InstrCountFiltered1(node, 1);
 
-		/*
-		 * Tuple fails qual, so free per-tuple memory and try again.
-		 */
-		ResetExprContext(econtext);
-	}
+        ResetExprContext(econtext);
+    }
+
+    return NULL;
 }
+
 
 /*
  * ExecAssignScanProjectionInfo

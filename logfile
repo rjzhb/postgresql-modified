@@ -147,3 +147,11 @@
 2024-10-29 14:13:07.047 EDT [90410] WARNING:  worker took too long to start; canceled
 2024-10-29 14:13:19.998 EDT [88859] LOG:  unexpected EOF on client connection with an open transaction
 2024-10-29 14:13:31.096 EDT [7803] WARNING:  autovacuum worker started without a worker entry
+2024-10-29 16:08:55.634 EDT [7822] LOG:  unexpected EOF on client connection with an open transaction
+2024-10-29 16:43:49.590 EDT [57845] LOG:  unexpected EOF on client connection with an open transaction
+2024-10-29 16:47:19.503 EDT [90405] LOG:  received fast shutdown request
+2024-10-29 16:47:19.504 EDT [90405] LOG:  aborting any active transactions
+2024-10-29 16:47:19.504 EDT [63402] FATAL:  terminating connection due to administrator command
+2024-10-29 16:47:19.509 EDT [90405] LOG:  background worker "logical replication launcher" (PID 90412) exited with exit code 1
+2024-10-29 16:47:19.509 EDT [90407] LOG:  shutting down
+2024-10-29 16:47:19.542 EDT [90405] LOG:  database system is shut down
