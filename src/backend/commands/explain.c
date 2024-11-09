@@ -1620,11 +1620,20 @@ ExplainNode(PlanState *planstate, List *ancestors,
 
 		if (es->format == EXPLAIN_FORMAT_TEXT)
 		{
-			if (es->timing)
+			if (es->timing){
 				appendStringInfo(es->str,
-								 " (actual time=%.3f..%.3f rows=%.0f loops=%.0f)",
-								 startup_ms, total_ms, rows, nloops);
-			else
+								" (actual time=%.3f..%.3f rows=%.0f loops=%.0f "
+								"fetch time=%.3f rows=%.0f "
+								"qual time=%.3f rows=%.0f "
+								"proj time=%.3f rows=%.0f)",
+								 startup_ms, total_ms, rows, nloops, 
+								 1000.0 * planstate->instrument->fetch_time / nloops,
+								 planstate->instrument->scan_count/nloops,
+								 1000.0 * planstate->instrument->qual_time / nloops,
+								 planstate->instrument->scan_count/nloops,
+								 1000.0 * planstate->instrument->proj_time / nloops,
+								 planstate->instrument->proj_count/nloops);
+			}else
 				appendStringInfo(es->str,
 								 " (actual rows=%.0f loops=%.0f)",
 								 rows, nloops);
@@ -1686,11 +1695,14 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			if (es->format == EXPLAIN_FORMAT_TEXT)
 			{
 				ExplainIndentText(es);
-				if (es->timing)
+				if (es->timing){
 					appendStringInfo(es->str,
-									 "actual time=%.3f..%.3f rows=%.0f loops=%.0f\n",
-									 startup_ms, total_ms, rows, nloops);
-				else
+									" (actual time=%.3f..%.3f rows=%.0f loops=%.0f fetch time=%.3f qual time=%.3f proj time=%.3f)",
+									startup_ms, total_ms, rows, nloops, 
+									1000.0 * planstate->instrument->fetch_time / nloops,
+									1000.0 * planstate->instrument->qual_time / nloops,
+									1000.0 * planstate->instrument->proj_time / nloops);
+				}else
 					appendStringInfo(es->str,
 									 "actual rows=%.0f loops=%.0f\n",
 									 rows, nloops);

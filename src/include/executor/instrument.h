@@ -86,6 +86,12 @@ typedef struct Instrumentation
 	double		nfiltered2;		/* # of tuples removed by "other" quals */
 	BufferUsage bufusage;		/* total buffer usage */
 	WalUsage	walusage;		/* total WAL usage */
+	/* Parameter to record for Dynamic Partition*/
+	double		qual_time;		/* execution time for qual */
+	double		proj_time;		/* execution time for proj */
+	double		fetch_time;		/* execution time for fetch */
+	double 		proj_count;
+	double			scan_count;
 } Instrumentation;
 
 typedef struct WorkerInstrumentation

@@ -733,6 +733,18 @@ TupleTableSlot *ExecScan(ScanState *node,
     ExprState *qual;
     ProjectionInfo *projInfo;
 
+
+	instr_time fetch_start, fetch_end, qual_start, qual_end, proj_start, proj_end;
+	instr_time fetch_time, qual_time, proj_time;
+	INSTR_TIME_SET_ZERO(fetch_start);
+	INSTR_TIME_SET_ZERO(fetch_end);
+	INSTR_TIME_SET_ZERO(qual_start);
+	INSTR_TIME_SET_ZERO(qual_end);
+	INSTR_TIME_SET_ZERO(proj_start);
+	INSTR_TIME_SET_ZERO(proj_end);
+	INSTR_TIME_SET_ZERO(fetch_time);
+	INSTR_TIME_SET_ZERO(qual_time);
+	INSTR_TIME_SET_ZERO(proj_time);
     qual = node->ps.qual;
     projInfo = node->ps.ps_ProjInfo;
     econtext = node->ps.ps_ExprContext;
@@ -741,12 +753,20 @@ TupleTableSlot *ExecScan(ScanState *node,
         ResetExprContext(econtext);
         return ExecScanFetch(node, accessMtd, recheckMtd);
     }
-
+	
     ResetExprContext(econtext);
 
-
     for (;;) {
+		INSTR_TIME_SET_CURRENT(fetch_start);
         TupleTableSlot *slot = ExecScanFetch(node, accessMtd, recheckMtd);
+		INSTR_TIME_SET_CURRENT(fetch_end);
+
+		if (node->ps.instrument)
+		{
+			instr_time fetch_time = fetch_end;
+			INSTR_TIME_SUBTRACT(fetch_time, fetch_start);
+			node->ps.instrument->fetch_time += INSTR_TIME_GET_DOUBLE(fetch_time);
+		}
 
         if (TupIsNull(slot)) {
             if (projInfo) {
@@ -757,25 +777,112 @@ TupleTableSlot *ExecScan(ScanState *node,
         }
 
         econtext->ecxt_scantuple = slot;
+
+		INSTR_TIME_SET_CURRENT(qual_start);
         bool qual_result = (qual == NULL) || ExecQual(qual, econtext);
+		INSTR_TIME_SET_CURRENT(qual_end);
+
+		if (node->ps.instrument)
+		{
+			qual_time = qual_end;
+			INSTR_TIME_SUBTRACT(qual_time, qual_start);
+			node->ps.instrument->qual_time += INSTR_TIME_GET_DOUBLE(qual_time);
+		}
 
         if (qual_result) {
             if (projInfo) {
+				INSTR_TIME_SET_CURRENT(proj_start);
                 TupleTableSlot *result = ExecProject(projInfo);
+				INSTR_TIME_SET_CURRENT(proj_end);
+
+				if (node->ps.instrument)
+				{
+					proj_time = proj_end;
+					INSTR_TIME_SUBTRACT(proj_time, proj_start);
+					node->ps.instrument->proj_time += INSTR_TIME_GET_DOUBLE(proj_time);
+					node->ps.instrument->scan_count += 1;
+					node->ps.instrument->proj_count += 1;
+				}
+
                 return result;
             } else {
+				if (node->ps.instrument)
+				{
+					node->ps.instrument->qual_time += INSTR_TIME_GET_DOUBLE(qual_time);
+					node->ps.instrument->fetch_time += INSTR_TIME_GET_DOUBLE(fetch_time);
+					node->ps.instrument->scan_count += 1;
+					node->ps.instrument->proj_count += 1;
+				}
+
                 return slot;
             }
         } else {
             InstrCountFiltered1(node, 1);
+			if (node->ps.instrument)
+			{
+				node->ps.instrument->scan_count += 1;
+				node->ps.instrument->qual_time += INSTR_TIME_GET_DOUBLE(qual_time);
+				node->ps.instrument->fetch_time += INSTR_TIME_GET_DOUBLE(fetch_time);
+			}
         }
-
-
         ResetExprContext(econtext);
     }
 
     return NULL;
 }
+
+
+// TupleTableSlot *ExecScan(ScanState *node,
+//                          ExecScanAccessMtd accessMtd,
+//                          ExecScanRecheckMtd recheckMtd)
+// {
+//     ExprContext *econtext;
+//     ExprState *qual;
+//     ProjectionInfo *projInfo;
+
+//     qual = node->ps.qual;
+//     projInfo = node->ps.ps_ProjInfo;
+//     econtext = node->ps.ps_ExprContext;
+
+//     if (!qual && !projInfo) {
+//         ResetExprContext(econtext);
+//         return ExecScanFetch(node, accessMtd, recheckMtd);
+//     }
+
+//     ResetExprContext(econtext);
+
+
+//     for (;;) {
+//         TupleTableSlot *slot = ExecScanFetch(node, accessMtd, recheckMtd);
+
+//         if (TupIsNull(slot)) {
+//             if (projInfo) {
+//                 return ExecClearTuple(projInfo->pi_state.resultslot);
+//             } else {
+//                 return slot;
+//             }
+//         }
+
+//         econtext->ecxt_scantuple = slot;
+//         bool qual_result = (qual == NULL) || ExecQual(qual, econtext);
+
+//         if (qual_result) {
+//             if (projInfo) {
+//                 TupleTableSlot *result = ExecProject(projInfo);
+//                 return result;
+//             } else {
+//                 return slot;
+//             }
+//         } else {
+//             InstrCountFiltered1(node, 1);
+//         }
+
+
+//         ResetExprContext(econtext);
+//     }
+
+//     return NULL;
+// }
 
 
 /*

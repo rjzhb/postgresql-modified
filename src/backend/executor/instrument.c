@@ -47,6 +47,12 @@ InstrAlloc(int n, int instrument_options, bool async_mode)
 			instr[i].need_walusage = need_wal;
 			instr[i].need_timer = need_timer;
 			instr[i].async_mode = async_mode;
+			// add statistics
+            instr[i].qual_time = 0.0;
+            instr[i].proj_time = 0.0;
+            instr[i].fetch_time = 0.0;
+			instr[i].scan_count = 0.0;
+			instr[i].proj_count = 0.0;
 		}
 	}
 
